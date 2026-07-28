@@ -149,10 +149,13 @@
     </div>
   </div>
 
-  <!-- HALAMAN KELOLA BARANG -->
+<!-- HALAMAN KELOLA BARANG -->
   <div id="halBarang" class="w-full h-full hidden flex flex-col gap-3">
-    <div class="bg-white p-3 rounded shadow flex justify-between items-center">
+    <div class="bg-white p-3 rounded shadow flex flex-wrap justify-between items-center gap-2">
       <h2 class="text-lg font-bold"><i class="fa fa-cubes mr-1"></i> Manajemen Daftar Barang</h2>
+      <div class="flex items-center gap-2 flex-1 max-w-md">
+        <input type="text" id="cariBarangMaster" class="w-full p-2 border rounded input-focus font-bold text-sm" placeholder="🔍 Cari Kode atau Nama Barang..." oninput="filterTabelBarangMaster()">
+      </div>
       <button onclick="bukaModalBarang()" class="bg-success text-white px-4 py-2 rounded font-bold hover:bg-success/90">➕ Tambah Barang Baru</button>
     </div>
     <div class="bg-white p-3 rounded shadow flex-1 overflow-y-auto">
@@ -236,16 +239,21 @@
 
 <script>
 let daftarBarang = [];
+let masterBarangLengkap = [];
 let keranjang = [];
 
 window.onload = function() {
-  google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+  muatDataKasir();
   const hariIni = new Date().toISOString().slice(0,10);
   document.getElementById("tglHari").value = hariIni;
   document.getElementById("tglBulan").value = hariIni.slice(0,7);
   document.getElementById("tglTahun").value = hariIni.slice(0,4);
   document.addEventListener("click", e => { if(!document.getElementById("daftarCari").contains(e.target) && e.target !== document.getElementById("cari")) document.getElementById("daftarCari").classList.add("hidden"); });
 };
+
+function muatDataKasir() {
+  google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+}
 
 function buka(hal) {
   document.getElementById("halKasir").classList.toggle("hidden", hal !== "kasir");
@@ -256,6 +264,7 @@ function buka(hal) {
   document.getElementById("tabBarang").classList.toggle("bg-white/20", hal === "barang");
   document.getElementById("tabLaporan").classList.toggle("bg-white/20", hal === "laporan");
 
+  if(hal === "kasir") muatDataKasir();
   if(hal === "barang") muatTabelBarangMaster();
   if(hal === "laporan") muatLaporan();
 }
@@ -338,7 +347,7 @@ function prosesSimpan() {
       const tombol = document.getElementById("tombolCetak");
       tombol.disabled = false;
       tombol.classList.remove("opacity-50", "cursor-not-allowed");
-      google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+      muatDataKasir();
     })
     .withFailureHandler(err => {
       console.error(err);
@@ -423,26 +432,44 @@ function ubahFilter() {
 // Fungsi Manajemen Data Barang Master
 function muatTabelBarangMaster() {
   google.script.run.withSuccessHandler(data => {
-    daftarBarang = data || [];
-    const tbody = document.getElementById("tabelBarangMaster");
-    if(!daftarBarang.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">Belum ada data barang</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = daftarBarang.map(b => `
-      <tr class="border-b hover:bg-gray-50">
-        <td class="p-2 font-bold">${b.kode}</td>
-        <td class="p-2 font-bold">${b.nama}</td>
-        <td class="p-2 text-right font-bold">Rp ${Number(b.harga).toLocaleString('id-ID')}</td>
-        <td class="p-2 text-right font-bold">Rp ${Number(b.modal || 0).toLocaleString('id-ID')}</td>
-        <td class="p-2 text-center font-bold">${b.stok}</td>
-        <td class="p-2 text-center flex justify-center gap-2">
-          <button onclick="editBarangMaster(${b.row}, '${b.kode}', '${b.nama.replace(/'/g, "\\'")}', ${b.harga}, ${b.modal || 0}, ${b.stok})" class="bg-amber-500 text-white px-2 py-1 rounded text-xs font-bold">Edit</button>
-          <button onclick="hapusBarangMaster(${b.row}, '${b.kode}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">Hapus</button>
-        </td>
-      </tr>
-    `).join("");
+    masterBarangLengkap = data || [];
+    document.getElementById("cariBarangMaster").value = ""; 
+    tampilkanTabelBarang(masterBarangLengkap);
   }).ambilDataBarangLengkap();
+}
+
+function tampilkanTabelBarang(dataBarang) {
+  const tbody = document.getElementById("tabelBarangMaster");
+  if(!dataBarang.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">Data barang tidak ditemukan</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = dataBarang.map(b => `
+    <tr class="border-b hover:bg-gray-50">
+      <td class="p-2 font-bold">${b.kode}</td>
+      <td class="p-2 font-bold">${b.nama}</td>
+      <td class="p-2 text-right font-bold">Rp ${Number(b.harga).toLocaleString('id-ID')}</td>
+      <td class="p-2 text-right font-bold">Rp ${Number(b.modal || 0).toLocaleString('id-ID')}</td>
+      <td class="p-2 text-center font-bold">${b.stok}</td>
+      <td class="p-2 text-center flex justify-center gap-2">
+        <button onclick="editBarangMaster(${b.row}, '${b.kode}', '${b.nama.replace(/'/g, "\\'")}', ${b.harga}, ${b.modal || 0}, ${b.stok})" class="bg-amber-500 text-white px-2 py-1 rounded text-xs font-bold">Edit</button>
+        <button onclick="hapusBarangMaster(${b.row}, '${b.kode}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">Hapus</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function filterTabelBarangMaster() {
+  const kataKunci = document.getElementById("cariBarangMaster").value.trim().toLowerCase();
+  if(!kataKunci) {
+    tampilkanTabelBarang(masterBarangLengkap);
+    return;
+  }
+  const hasilFilter = masterBarangLengkap.filter(b => 
+    String(b.kode).toLowerCase().includes(kataKunci) || 
+    String(b.nama).toLowerCase().includes(kataKunci)
+  );
+  tampilkanTabelBarang(hasilFilter);
 }
 
 function bukaModalBarang(isEdit = false) {
@@ -466,7 +493,7 @@ function tutupModalBarang() {
 function editBarangMaster(row, kode, nama, harga, modal, stok) {
   document.getElementById("editRow").value = row;
   document.getElementById("inputKodeBarang").value = kode;
-  document.getElementById("inputKodeBarang").disabled = true; // Kode dikunci saat edit agar tidak konflik baris
+  document.getElementById("inputKodeBarang").disabled = true; 
   document.getElementById("inputNamaBarang").value = nama;
   document.getElementById("inputHargaJual").value = harga;
   document.getElementById("inputHargaModal").value = modal;
@@ -495,7 +522,7 @@ function simpanDataBarangMaster() {
       if(res.status === "success") {
         tutupModalBarang();
         muatTabelBarangMaster();
-        google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+        muatDataKasir();
       }
     }).updateBarang(payload);
   } else {
@@ -504,7 +531,7 @@ function simpanDataBarangMaster() {
       if(res.status === "success") {
         tutupModalBarang();
         muatTabelBarangMaster();
-        google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+        muatDataKasir();
       }
     }).tambahBarang(payload);
   }
@@ -515,7 +542,7 @@ function hapusBarangMaster(row, kode) {
     google.script.run.withSuccessHandler(res => {
       tampilPesan(res.pesan, "success");
       muatTabelBarangMaster();
-      google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+      muatDataKasir();
     }).hapusBarang(row);
   }
 }
@@ -547,7 +574,7 @@ function muatLaporan() {
         document.getElementById("isiTabel").innerHTML = dataJual.length ? dataJual.map(b => `<tr class="border-b hover:bg-gray-50"><td class="p-2 font-bold">${b.tgl}</td><td class="font-bold">${b.noTransaksi}</td><td class="font-bold">${b.idBarang}</td><td class="font-bold">${b.nama}</td><td class="text-right font-bold">Rp ${b.harga.toLocaleString("id-ID")}</td><td class="text-center font-bold">${b.jumlah}</td><td class="text-right font-bold">Rp ${b.subtotal.toLocaleString("id-ID")}</td><td class="text-right font-bold ${b.laba >=0 ? "text-green-600" : "text-red-600"}">Rp ${b.laba.toLocaleString("id-ID")}</td></tr>`).join("") : `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">Tidak ada data</td></tr>`;
       } else {
         lapOmset.innerText = `Rp ${omsetLay.toLocaleString("id-ID")}`;
-        document.getElementById("judulTabel").innerHTML = `<tr><th class="p-2 text-left font-bold">Tgl</th><th class="font-bold">Jenis</th><th class="text-right font-bold">Modal</th><th class="text-right font-bold">Jual</th><th class="text-right font-bold">Laba</th></tr>`;
+        document.getElementById("judulTabel").innerHTML = `<tr><td colspan="5" class="p-2 text-left font-bold">Tgl</th><th class="font-bold">Jenis</th><th class="text-right font-bold">Modal</th><th class="text-right font-bold">Jual</th><th class="text-right font-bold">Laba</th></tr>`;
         document.getElementById("isiTabel").innerHTML = dataLay.length ? dataLay.map(b => `<tr class="border-b hover:bg-gray-50"><td class="p-2 font-bold">${b.tgl}</td><td class="font-bold">${b.jenis}</td><td class="text-right font-bold">Rp ${b.modal.toLocaleString("id-ID")}</td><td class="text-right font-bold">Rp ${b.jual.toLocaleString("id-ID")}</td><td class="text-right font-bold ${b.laba >=0 ? "text-green-600" : "text-red-600"}">Rp ${b.laba.toLocaleString("id-ID")}</td></tr>`).join("") : `<tr><td colspan="5" class="p-4 text-center text-gray-500 font-bold">Tidak ada data</td></tr>`;
       }
     }).withFailureHandler(() => tampilPesan("❌ Gagal baca layanan", "danger")).ambilLaporanLayanan(tipe, nilai);
