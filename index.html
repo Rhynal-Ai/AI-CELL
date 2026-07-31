@@ -7,7 +7,6 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<!-- Library SheetJS untuk Export Excel (.xlsx) rapi per kolom -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -28,8 +27,8 @@
     <form onsubmit="handleLogin(event)" class="space-y-4">
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Username / Nama Subkon</label>
-        <input type="text" id="loginUser" required class="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-emerald-600" placeholder="Masukkan admin atau nama subkon">
-        <p class="text-[10px] text-slate-400 mt-1">Ketik <b>admin</b> untuk akses penuh, atau ketik nama subkon Anda.</p>
+        <input type="text" id="loginUser" required class="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-emerald-600" placeholder="Ketik admin atau nama subkon">
+        <p class="text-[10px] text-slate-400 mt-1">Contoh: <b>PT. BUMI JASA UTAMA</b> atau <b>PT. MPM</b></p>
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
@@ -162,8 +161,8 @@ let globalTimbangData = [];
 let globalKecepatanData = [];
 let rawDataKecepatanTable = [];
 let filteredSpeedExportData = [];
+let allAvailableSubkons = [];
 
-// Menyimpan info login aktif ('admin' atau nama subkon tertentu)
 let currentRole = 'admin';
 
 function toggleSidebar() {
@@ -173,10 +172,15 @@ function toggleSidebar() {
   backdrop.classList.toggle('hidden');
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   let u = document.getElementById('loginUser').value.trim();
   let p = document.getElementById('loginPass').value.trim();
+
+  // Pastikan data subkon sudah ditarik minimal sekali untuk pencocokan instan
+  if (allAvailableSubkons.length === 0) {
+    await fetchInitialDataForAuth();
+  }
 
   if (u.toLowerCase() === 'admin' && p === 'clm2026') {
     currentRole = 'admin';
@@ -184,9 +188,9 @@ function handleLogin(event) {
     localStorage.setItem('authSubkon', '');
     initDashboardSession();
   } else {
-    // Cek apakah input u cocok dengan salah satu subkon yang ada di database
+    // Cek apakah password subkon benar ("subkon2026") dan username cocok dengan subkon di database
     let matchedSubkon = allAvailableSubkons.find(s => s.toLowerCase() === u.toLowerCase());
-    if (matchedSubkon) {
+    if (matchedSubkon && p === 'subkon2026') {
       currentRole = matchedSubkon;
       localStorage.setItem('authRole', 'subkon');
       localStorage.setItem('authSubkon', matchedSubkon);
@@ -203,10 +207,7 @@ function logout() {
   location.reload();
 }
 
-let allAvailableSubkons = [];
-
 window.addEventListener('DOMContentLoaded', async () => {
-  // Ambil data terlebih dahulu untuk mendaftarkan list subkon secara otomatis
   await fetchInitialDataForAuth();
 
   let role = localStorage.getItem('authRole');
@@ -220,10 +221,8 @@ async function fetchInitialDataForAuth() {
   try {
     let response = await fetch(WEB_APP_URL);
     let json = await response.json();
-    
     let subkonSet = new Set();
     
-    // Kumpulkan subkon dari timbang & kecepatan
     if (json.timbang) {
       json.timbang.forEach(row => { if(row && row[3]) subkonSet.add(String(row[3]).trim()); });
     }
@@ -245,8 +244,6 @@ function initDashboardSession() {
   } else {
     document.getElementById('userSessionBadge').innerText = "Subkon: " + currentRole;
     document.getElementById('sidebarSubkonLabel').innerText = currentRole;
-    
-    // Sembunyikan dropdown filter subkon karena sudah dikunci khusus untuk subkon tersebut
     document.getElementById('filterSubkonTimbangWrapper').style.display = 'none';
     document.getElementById('filterSubkonSpeedWrapper').style.display = 'none';
   }
@@ -293,7 +290,6 @@ async function loadDataFromSpreadsheet() {
       let netto = parseFloat(row[10]);
       let rawDateOut = row[14] || row[13] || row[12] || "";
       
-      // Jika login sebagai subkon, saring langsung datanya
       if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
 
       if (subkon && !isNaN(netto) && netto > 0) {
@@ -322,7 +318,6 @@ async function loadDataFromSpreadsheet() {
       let speedVal = parseFloat(row[5]);
       let rawKlasifikasi = row[6] ? String(row[6]).trim() : "";
 
-      // Jika login sebagai subkon, saring langsung datanya
       if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
       
       let klasifikasi = "STANDAR";
@@ -573,7 +568,6 @@ function renderTabelKecepatan(data) {
   });
 }
 
-// Fungsi Download Excel (.xlsx) murni sesuai data yang tampil (Admin: Semua, Subkon: Miliknya sendiri)
 function downloadExcel() {
   if (!filteredSpeedExportData || filteredSpeedExportData.length === 0) {
     alert("Tidak ada data untuk diunduh!");
