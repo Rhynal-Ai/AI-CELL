@@ -1,591 +1,600 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TOKO AI CELL</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#0052CC',
-            success: '#00875A',
-            danger: '#DC2626',
-            accent: '#7C3AED'
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { 
-      height: 100vh; 
-      width: 100vw;
-      overflow: hidden; 
-      font-size: 14px; 
-    }
-    .hasil-cari:hover { background: #EFF6FF; cursor: pointer; }
-    #pesan {
-      position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: none;
-      min-width: 260px; max-width: 320px; padding: 0.75rem 1rem; border-radius: 0.375rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 500;
-      animation: fade 2.5s ease forwards;
-    }
-    @keyframes fade {
-      0% { opacity: 0; transform: translateY(-10px); }
-      15% { opacity: 1; transform: translateY(0); }
-      85% { opacity: 1; }
-      100% { opacity: 0; }
-    }
-    .scroll-y { overflow-y: auto; }
-    .scroll-y::-webkit-scrollbar { width: 5px; }
-    .scroll-y::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-    .input-focus:focus { outline: none; border-color: #2563EB; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
-    @media print {
-      body { margin: 0; padding: 0; font-family: 'Courier New', monospace; font-size: 12px; }
-      .struk { width: 58mm; margin: 0 auto; }
-    }
-    @media (max-width: 1024px) {
-      .lg\:grid-cols-3 { grid-template-columns: 1fr; }
-      .grid-cols-4 { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-      .grid-cols-3 { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-      .grid-cols-2 { grid-template-columns: 1fr; gap: 0.5rem; }
-    }
-    @media (max-width: 640px) {
-      .grid-cols-4 { grid-template-columns: 1fr; }
-      .grid-cols-3 { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard WB & QAQC - PT. Citra Lampia Mandiri</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<!-- Library SheetJS untuk Export Excel (.xlsx) rapi per kolom -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+</style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="text-slate-800 antialiased flex h-screen overflow-hidden">
 
-<div id="pesan"></div>
-
-<header class="bg-primary text-white h-14 px-4 flex items-center justify-between shadow w-full">
-  <h1 class="text-lg font-bold flex items-center gap-2"><i class="fa fa-shopping-cart"></i> TOKO AI CELL</h1>
-  <div class="flex gap-2">
-    <button onclick="buka('kasir')" id="tabKasir" class="px-4 py-1.5 rounded bg-white/20 font-bold">Kasir</button>
-    <button onclick="buka('barang')" id="tabBarang" class="px-4 py-1.5 rounded hover:bg-white/20 font-bold">Barang</button>
-    <button onclick="buka('laporan')" id="tabLaporan" class="px-4 py-1.5 rounded hover:bg-white/20 font-bold">Laporan</button>
-  </div>
-</header>
-
-<main class="w-full h-[calc(100vh-56px)] p-2 md:p-3 overflow-hidden">
-
-  <!-- HALAMAN KASIR -->
-  <div id="halKasir" class="w-full h-full">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-2 md:gap-3 h-full">
-      <div class="lg:col-span-2 flex flex-col gap-2 md:gap-3 h-full">
-        <div class="bg-white p-3 rounded shadow border-l-4 border-primary">
-          <h3 class="font-bold mb-2 text-base"><i class="fa fa-cube mr-1"></i> Penjualan Barang</h3>
-          <div class="relative mb-3">
-            <input type="text" id="cari" class="w-full p-2.5 border rounded input-focus font-bold" placeholder="🔍 Kode / Nama Barang" autofocus oninput="cariBarang()">
-            <div id="daftarCari" class="absolute w-full left-0 mt-1 bg-white border rounded shadow-lg max-h-40 overflow-y-auto hidden z-20"></div>
-          </div>
-          <div class="grid grid-cols-4 gap-2 mb-3">
-            <div><label class="text-sm font-bold mb-1 block">Nama</label><input type="text" id="nama" class="w-full p-2 border rounded bg-gray-50 font-bold" readonly></div>
-            <div><label class="text-sm font-bold mb-1 block">Harga</label><input type="text" id="hrg" class="w-full p-2 border rounded bg-gray-50 text-right font-bold" readonly></div>
-            <div><label class="text-sm font-bold mb-1 block">Stok</label><input type="text" id="stok" class="w-full p-2 border rounded bg-gray-50 text-center font-bold" readonly></div>
-            <div><label class="text-sm font-bold mb-1 block">Jumlah</label><input type="number" id="jml" min="1" value="1" class="w-full p-2 border rounded input-focus text-center font-bold"></div>
-          </div>
-          <button onclick="tambahKeKeranjang()" class="w-full bg-primary text-white p-2.5 rounded hover:bg-primary/90 font-bold">➕ Masukkan Keranjang</button>
-        </div>
-
-        <div class="bg-white p-3 rounded shadow border-l-4 border-green-600">
-          <h3 class="font-bold mb-3 text-base"><i class="fa fa-credit-card mr-1"></i> Pembayaran</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-            <div>
-              <label class="text-sm font-bold mb-1 block">Uang Dibayar</label>
-              <input type="number" id="bayar" class="w-full p-2.5 border rounded input-focus text-lg font-bold" oninput="hitungKembali()" placeholder="Masukkan jumlah uang">
-            </div>
-            <div class="flex flex-col gap-2 justify-center">
-              <div class="flex justify-between items-center">
-                <span class="font-bold text-base">TOTAL:</span>
-                <span id="total" class="text-xl font-bold text-red-600">Rp 0</span>
-              </div>
-              <div class="flex justify-between items-center bg-red-50 p-2 rounded border border-red-200">
-                <span class="font-bold text-base">Uang Kembali:</span>
-                <span id="kembali" class="text-xl font-bold text-red-600">Rp 0</span>
-              </div>
-            </div>
-          </div>
-          <div class="grid grid-cols-3 gap-2 w-full">
-            <button onclick="prosesSimpan()" class="w-full bg-primary text-white p-2.5 rounded font-bold hover:bg-primary/90">💾 Simpan</button>
-            <button onclick="cetakStruk()" id="tombolCetak" class="w-full bg-orange-500 text-white p-2.5 rounded opacity-50 cursor-not-allowed font-bold" disabled>🖨️ Cetak</button>
-            <button onclick="resetSemua()" class="w-full bg-gray-500 text-white p-2.5 rounded font-bold hover:bg-gray-600">🔄 Reset</button>
-          </div>
-        </div>
-
-        <div class="bg-white p-3 rounded shadow border-l-4 border-purple-600">
-          <h3 class="font-bold text-base mb-3"><i class="fa fa-mobile mr-1"></i> Layanan / Pulsa</h3>
-          <div class="grid grid-cols-3 gap-2 mb-3">
-            <div><label class="text-sm font-bold mb-1 block">Jenis</label><select id="jenis" class="w-full p-2 border rounded input-focus font-bold"><option>Pulsa</option><option>Token Listrik</option><option>E-Wallet</option><option>Tagihan</option><option>Lainnya</option></select></div>
-            <div><label class="text-sm font-bold mb-1 block">Modal</label><input type="number" id="mod" class="w-full p-2 border rounded input-focus font-bold" oninput="hitungLaba()"></div>
-            <div><label class="text-sm font-bold mb-1 block">Jual</label><input type="number" id="jual" class="w-full p-2 border rounded input-focus font-bold" oninput="hitungLaba()"></div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div><label class="text-sm font-bold mb-1 block">Laba</label><input type="text" id="laba" class="w-full p-2 border rounded bg-gray-50 font-bold" readonly></div>
-            <button onclick="simpanLayanan()" id="tombolSimpanLayanan" class="w-full bg-purple-600 text-white p-2 rounded font-bold hover:bg-purple-700">Simpan Layanan</button>
-          </div>
-        </div>
+<!-- MODAL / HALAMAN LOGIN -->
+<div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
+  <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-100">
+    <div class="text-center mb-6">
+      <div class="inline-flex bg-emerald-100 text-emerald-800 p-3 rounded-2xl text-2xl mb-3"><i class="fa-solid fa-lock"></i></div>
+      <h2 class="text-xl font-bold text-slate-800">Login Dashboard WB & QAQC</h2>
+      <p class="text-xs text-slate-500 mt-1">PT. Citra Lampia Mandiri</p>
+    </div>
+    <form onsubmit="handleLogin(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Username / Nama Subkon</label>
+        <input type="text" id="loginUser" required class="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-emerald-600" placeholder="Masukkan admin atau nama subkon">
+        <p class="text-[10px] text-slate-400 mt-1">Ketik <b>admin</b> untuk akses penuh, atau ketik nama subkon Anda.</p>
       </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+        <input type="password" id="loginPass" required class="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-emerald-600" placeholder="Masukkan password">
+      </div>
+      <p id="loginError" class="text-xs text-rose-500 font-semibold hidden">Username atau password salah!</p>
+      <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-xl text-sm transition shadow-sm">Masuk Dashboard</button>
+    </form>
+  </div>
+</div>
 
-      <div class="bg-white p-3 rounded shadow flex flex-col h-full">
-        <h3 class="font-bold text-base mb-3"><i class="fa fa-shopping-basket mr-1"></i> Keranjang Belanja</h3>
-        <div class="border rounded mb-3 flex-1 overflow-y-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-100 sticky top-0"><tr><th class="p-2 text-left font-bold">Barang</th><th class="text-center font-bold">Jml</th><th class="text-right font-bold">Subtotal</th><th width="30"></th></tr></thead>
-            <tbody id="isiKeranjang"><tr><td colspan="4" class="p-4 text-center text-gray-500 font-bold">Belum ada barang</td></tr></tbody>
-          </table>
-        </div>
-        <div class="p-3 bg-red-50 border border-red-200 rounded">
-          <div class="flex justify-between items-center"><span class="font-bold text-base">TOTAL:</span><span id="totalKeranjang" class="text-xl font-bold text-red-600">Rp 0</span></div>
-        </div>
+<!-- Backdrop untuk Sidebar Mobile -->
+<div id="sidebarBackdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-30 hidden md:hidden"></div>
+
+<!-- Sidebar Navigasi -->
+<aside id="sidebar" class="fixed md:static inset-y-0 left-0 w-64 bg-emerald-800 text-white flex flex-col shadow-lg z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300">
+  <div class="p-6 border-b border-emerald-700 flex justify-between items-center">
+    <div>
+      <h1 class="text-lg font-bold leading-tight">Dashboard WB QAQC</h1>
+      <p id="sidebarSubkonLabel" class="text-xs text-emerald-200 mt-1">PT. Citra Lampia Mandiri</p>
+    </div>
+    <button onclick="toggleSidebar()" class="md:hidden text-emerald-200 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <nav class="flex-1 p-4 space-y-2">
+    <button onclick="switchPage('timbang'); toggleSidebar();" id="navTimbang" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition bg-emerald-900 text-white shadow-sm"><i class="fa-solid fa-house text-base"></i> Dashboard Utama</button>
+    <button onclick="switchPage('kecepatan'); toggleSidebar();" id="navKecepatan" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-emerald-100 hover:bg-emerald-700/50"><i class="fa-solid fa-gauge-high text-base"></i> Kecepatan Rata-Rata</button>
+  </nav>
+  <div class="p-4 border-t border-emerald-700 flex justify-between items-center text-xs text-emerald-200">
+    <span id="userSessionBadge">Admin</span>
+    <button onclick="logout()" class="hover:text-white underline"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+  </div>
+</aside>
+
+<!-- Konten Utama -->
+<main class="flex-1 flex flex-col h-screen overflow-y-auto">
+  <header class="bg-white border-b border-slate-200 px-6 md:px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+    <div class="flex items-center gap-3">
+      <button onclick="toggleSidebar()" class="md:hidden text-slate-700 hover:text-emerald-700 text-lg"><i class="fa-solid fa-bars"></i></button>
+      <h2 id="pageTitle" class="text-lg md:text-xl font-bold text-slate-800">Dashboard Utama</h2>
+    </div>
+    <div id="loadingIndicator" class="text-xs text-emerald-600 font-semibold flex items-center gap-2 hidden"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</div>
+  </header>
+
+  <!-- HALAMAN 1: TIMBANG -->
+  <section id="pageTimbang" class="p-4 md:p-8 space-y-6">
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-end gap-4">
+      <div class="flex-1 min-w-[200px]"><label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Mulai</label><input type="date" id="timbangStart" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"></div>
+      <div class="flex-1 min-w-[200px]"><label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Akhir</label><input type="date" id="timbangEnd" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"></div>
+      <div class="flex-1 min-w-[200px]" id="filterSubkonTimbangWrapper">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Pilih Subkon</label>
+        <select id="timbangSubkon" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"><option value="">Semua Subkon</option></select>
+      </div>
+      <div><button onclick="applyTimbangFilter()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2 rounded-xl text-sm transition shadow-sm flex items-center gap-2"><i class="fa-solid fa-filter"></i> Filter</button></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-600 flex justify-between items-center">
+        <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Netto</p><h3 id="statTotalNetto" class="text-2xl md:text-3xl font-extrabold text-slate-800 mt-1">0.00 ton</h3></div>
+        <div class="bg-emerald-50 p-4 rounded-xl text-emerald-600 text-xl"><i class="fa-solid fa-scale-balanced"></i></div>
+      </div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500 flex justify-between items-center">
+        <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Jumlah Total Transaksi</p><h3 id="statTotalTx" class="text-2xl md:text-3xl font-extrabold text-slate-800 mt-1">0</h3></div>
+        <div class="bg-blue-50 p-4 rounded-xl text-blue-500 text-xl"><i class="fa-solid fa-truck"></i></div>
       </div>
     </div>
-  </div>
-
-<!-- HALAMAN KELOLA BARANG -->
-  <div id="halBarang" class="w-full h-full hidden flex flex-col gap-3">
-    <div class="bg-white p-3 rounded shadow flex flex-wrap justify-between items-center gap-2">
-      <h2 class="text-lg font-bold"><i class="fa fa-cubes mr-1"></i> Manajemen Daftar Barang</h2>
-      <div class="flex items-center gap-2 flex-1 max-w-md">
-        <input type="text" id="cariBarangMaster" class="w-full p-2 border rounded input-focus font-bold text-sm" placeholder="🔍 Cari Kode atau Nama Barang..." oninput="filterTabelBarangMaster()">
-      </div>
-      <button onclick="bukaModalBarang()" class="bg-success text-white px-4 py-2 rounded font-bold hover:bg-success/90">➕ Tambah Barang Baru</button>
+    <div class="space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[450px] flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Netto Berdasarkan Subkon</h3><div class="relative flex-grow w-full h-[400px]"><canvas id="chartSubkon"></canvas></div></div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[400px] flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Netto Berdasarkan Supplier</h3><div class="relative flex-grow w-full h-[350px]"><canvas id="chartSupplier"></canvas></div></div>
     </div>
-    <div class="bg-white p-3 rounded shadow flex-1 overflow-y-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-100 sticky top-0">
-          <tr>
-            <th class="p-2 text-left font-bold">Kode</th>
-            <th class="p-2 text-left font-bold">Nama Barang</th>
-            <th class="p-2 text-right font-bold">Harga Jual</th>
-            <th class="p-2 text-right font-bold">Harga Modal</th>
-            <th class="p-2 text-center font-bold">Stok</th>
-            <th class="p-2 text-center font-bold">Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="tabelBarangMaster">
-          <tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">Memuat data...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  </section>
 
-  <!-- MODAL FORM TAMBAH / EDIT BARANG -->
-  <div id="modalBarang" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-3">
-    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
-      <h3 id="modalBarangJudul" class="text-base font-bold mb-3">Tambah Barang</h3>
-      <input type="hidden" id="editRow">
-      <div class="space-y-3 mb-4">
-        <div>
-          <label class="text-sm font-bold mb-1 block">Kode / ID Barang</label>
-          <input type="text" id="inputKodeBarang" class="w-full p-2 border rounded input-focus font-bold" placeholder="Contoh: BRG001">
-        </div>
-        <div>
-          <label class="text-sm font-bold mb-1 block">Nama Barang</label>
-          <input type="text" id="inputNamaBarang" class="w-full p-2 border rounded input-focus font-bold" placeholder="Nama barang">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-sm font-bold mb-1 block">Harga Jual (Rp)</label>
-            <input type="number" id="inputHargaJual" class="w-full p-2 border rounded input-focus font-bold" placeholder="0">
-          </div>
-          <div>
-            <label class="text-sm font-bold mb-1 block">Harga Modal (Rp)</label>
-            <input type="number" id="inputHargaModal" class="w-full p-2 border rounded input-focus font-bold" placeholder="0">
-          </div>
-        </div>
-        <div>
-          <label class="text-sm font-bold mb-1 block">Stok Awal / Saat Ini</label>
-          <input type="number" id="inputStokBarang" class="w-full p-2 border rounded input-focus font-bold" placeholder="0" value="0">
-        </div>
+  <!-- HALAMAN 2: KECEPATAN -->
+  <section id="pageKecepatan" class="p-4 md:p-8 space-y-6 hidden">
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-end gap-4">
+      <div class="flex-1 min-w-[180px]"><label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Mulai</label><input type="date" id="speedStart" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"></div>
+      <div class="flex-1 min-w-[180px]"><label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Akhir</label><input type="date" id="speedEnd" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"></div>
+      <div class="flex-1 min-w-[180px]" id="filterSubkonSpeedWrapper">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Pilih Subkon</label>
+        <select id="speedSubkon" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"><option value="">Semua Subkon</option></select>
       </div>
-      <div class="flex justify-end gap-2">
-        <button onclick="tutupModalBarang()" class="bg-gray-500 text-white px-4 py-2 rounded font-bold hover:bg-gray-600">Batal</button>
-        <button onclick="simpanDataBarangMaster()" class="bg-primary text-white px-4 py-2 rounded font-bold hover:bg-primary/90">Simpan</button>
+      <div class="flex-1 min-w-[180px]"><label class="block text-xs font-semibold text-slate-600 mb-1">Klasifikasi</label><select id="speedKlasifikasi" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"><option value="">Semua Klasifikasi</option><option value="STANDAR">Standar</option><option value="UNDER SPEED">Under Speed</option><option value="OVER SPEED">Over Speed</option></select></div>
+      <div><button onclick="applySpeedFilter()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2 rounded-xl text-sm transition shadow-sm flex items-center gap-2"><i class="fa-solid fa-filter"></i> Filter</button></div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-500"><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Standar</p><h3 id="statTotalStd" class="text-3xl font-extrabold text-slate-800 mt-1">0</h3></div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500"><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Under Speed</p><h3 id="statTotalUnder" class="text-3xl font-extrabold text-slate-800 mt-1">0</h3></div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-rose-500"><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Over Speed</p><h3 id="statTotalOver" class="text-3xl font-extrabold text-slate-800 mt-1">0</h3></div>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-96 flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Klasifikasi Kecepatan Unit per Subkon</h3><div class="relative flex-grow"><canvas id="chartKecepatan"></canvas></div></div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-96 flex flex-col lg:col-span-2"><h3 class="text-sm font-bold text-slate-800 mb-4">Persentase Pelanggaran Over Speed per Subkon (%)</h3><div class="relative flex-grow"><canvas id="chartPersenOverSpeed"></canvas></div></div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-96 flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Proporsi Total Kecepatan</h3><div class="relative flex-grow"><canvas id="chartPieGlobal"></canvas></div></div>
+    </div>
+
+    <!-- TABEL DETAIL DATA KECEPATAN + TOMBOL DOWNLOAD EXCEL -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col space-y-4">
+      <div class="flex justify-between items-center flex-wrap gap-3">
+        <h3 class="text-sm font-bold text-slate-800">Detail Log Kecepatan Unit</h3>
+        <button onclick="downloadExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2">
+          <i class="fa-solid fa-file-excel"></i> Download Excel (.xlsx)
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 uppercase">
+              <th class="p-3 border-b">Subkon</th>
+              <th class="p-3 border-b">No. Lambung</th>
+              <th class="p-3 border-b">Tanggal</th>
+              <th class="p-3 border-b">Kecepatan (Km/Jam)</th>
+              <th class="p-3 border-b">Klasifikasi</th>
+              <th class="p-3 border-b">Risk-Based Assessment</th>
+            </tr>
+          </thead>
+          <tbody id="speedTableBody">
+            <tr><td colspan="6" class="p-4 text-center text-slate-400">Memuat detail data...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
-  </div>
-
-  <!-- HALAMAN LAPORAN -->
-  <div id="halLaporan" class="w-full h-full hidden">
-    <h2 class="text-lg font-bold mb-3">📊 Dashboard & Laporan</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-      <div class="bg-white p-3 rounded shadow border-l-4 border-blue-500"><p class="text-xs text-gray-500 font-medium">Omset</p><p class="text-lg font-bold text-blue-700" id="lapOmset">Rp 0</p></div>
-      <div class="bg-white p-3 rounded shadow border-l-4 border-green-600"><p class="text-xs text-gray-500 font-medium">Laba Barang</p><p class="text-lg font-bold text-green-700" id="lapLabaBrg">Rp 0</p></div>
-      <div class="bg-white p-3 rounded shadow border-l-4 border-purple-600"><p class="text-xs text-gray-500 font-medium">Laba Layanan</p><p class="text-lg font-bold text-purple-700" id="lapLabaLay">Rp 0</p></div>
-      <div class="bg-white p-3 rounded shadow border-l-4 border-red-600"><p class="text-xs text-gray-500 font-medium">Total Laba</p><p class="text-lg font-bold text-red-700" id="lapTotal">Rp 0</p></div>
-    </div>
-    <div class="bg-white p-3 rounded shadow mb-3 flex flex-wrap gap-2 items-center">
-      <select id="filterTipe" onchange="ubahFilter()" class="p-2 border rounded font-bold"><option value="hari">Per Hari</option><option value="bulan">Per Bulan</option><option value="tahun">Per Tahun</option></select>
-      <input type="date" id="tglHari" class="p-2 border rounded font-bold">
-      <input type="month" id="tglBulan" class="p-2 border rounded font-bold hidden">
-      <input type="number" id="tglTahun" placeholder="2026" class="p-2 border rounded font-bold hidden w-24">
-      <select id="jenisLap" class="p-2 border rounded font-bold"><option value="barang">Penjualan</option><option value="layanan">Layanan</option></select>
-      <button onclick="muatLaporan()" class="bg-primary text-white px-4 py-2 rounded font-bold hover:bg-primary/90">Tampilkan</button>
-    </div>
-    <div class="bg-white p-3 rounded shadow h-[calc(100%-170px)] overflow-y-auto">
-      <table class="w-full text-sm"><thead id="judulTabel" class="bg-gray-100 sticky top-0"></thead><tbody id="isiTabel"></tbody></table>
-    </div>
-  </div>
-
+  </section>
 </main>
 
 <script>
-let daftarBarang = [];
-let masterBarangLengkap = [];
-let keranjang = [];
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxKUGNh_8X0MFJsUs4rp4_VPVDDN9xqqZ7nyBfBNdSd2UFLdAGUMor7Y2bYApUTdUOJ8Q/exec";
+let c1, c2, c3, c4, c5;
+let globalTimbangData = [];
+let globalKecepatanData = [];
+let rawDataKecepatanTable = [];
+let filteredSpeedExportData = [];
 
-window.onload = function() {
-  muatDataKasir();
-  const hariIni = new Date().toISOString().slice(0,10);
-  document.getElementById("tglHari").value = hariIni;
-  document.getElementById("tglBulan").value = hariIni.slice(0,7);
-  document.getElementById("tglTahun").value = hariIni.slice(0,4);
-  document.addEventListener("click", e => { if(!document.getElementById("daftarCari").contains(e.target) && e.target !== document.getElementById("cari")) document.getElementById("daftarCari").classList.add("hidden"); });
-};
+// Menyimpan info login aktif ('admin' atau nama subkon tertentu)
+let currentRole = 'admin';
 
-function muatDataKasir() {
-  google.script.run.withSuccessHandler(d => daftarBarang = d || []).ambilSemuaBarang();
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  sidebar.classList.toggle('-translate-x-full');
+  backdrop.classList.toggle('hidden');
 }
 
-function buka(hal) {
-  document.getElementById("halKasir").classList.toggle("hidden", hal !== "kasir");
-  document.getElementById("halBarang").classList.toggle("hidden", hal !== "barang");
-  document.getElementById("halLaporan").classList.toggle("hidden", hal !== "laporan");
+function handleLogin(event) {
+  event.preventDefault();
+  let u = document.getElementById('loginUser').value.trim();
+  let p = document.getElementById('loginPass').value.trim();
 
-  document.getElementById("tabKasir").classList.toggle("bg-white/20", hal === "kasir");
-  document.getElementById("tabBarang").classList.toggle("bg-white/20", hal === "barang");
-  document.getElementById("tabLaporan").classList.toggle("bg-white/20", hal === "laporan");
-
-  if(hal === "kasir") muatDataKasir();
-  if(hal === "barang") muatTabelBarangMaster();
-  if(hal === "laporan") muatLaporan();
-}
-
-function cariBarang() {
-  const kata = document.getElementById("cari").value.trim().toLowerCase();
-  const kotak = document.getElementById("daftarCari");
-  if(!kata) return kotak.classList.add("hidden");
-  const pas = daftarBarang.find(b => String(b[0]).toLowerCase() === kata);
-  if(pas) { pilihBarang(pas[0], pas[1], pas[2], pas[3], pas[4]); return kotak.classList.add("hidden"); }
-  const hasil = daftarBarang.filter(b => String(b[0]).toLowerCase().includes(kata) || String(b[1]).toLowerCase().includes(kata));
-  if(!hasil.length) return kotak.classList.add("hidden");
-  kotak.innerHTML = hasil.map(b => `<div class="hasil-cari p-2 border-b font-bold" onclick="pilihBarang('${b[0]}','${b[1].replace(/'/g,"\\'")}',${b[2]},${b[3]},${b[4]})">${b[1]} <span class="float-right">Rp ${b[2].toLocaleString('id-ID')}</span></div>`).join("");
-  kotak.classList.remove("hidden");
-}
-
-function pilihBarang(kode, nama, hrg, stok, mod) {
-  document.getElementById("cari").value = kode;
-  document.getElementById("nama").value = nama;
-  document.getElementById("hrg").value = hrg.toLocaleString('id-ID');
-  document.getElementById("stok").value = stok;
-  document.getElementById("cari").dataset.mod = mod;
-  document.getElementById("daftarCari").classList.add("hidden");
-  const inputJml = document.getElementById("jml");
-  inputJml.focus();
-  inputJml.select();
-}
-
-function tambahKeKeranjang() {
-  const kode = document.getElementById("cari").value.trim();
-  const nama = document.getElementById("nama").value;
-  const hrg = Number(document.getElementById("hrg").value.replace(/\./g,""));
-  const mod = Number(document.getElementById("cari").dataset.mod || 0);
-  const jml = Number(document.getElementById("jml").value || 1);
-  if(!kode || hrg <= 0) return tampilPesan("⚠️ Pilih barang dulu!", "warning");
-  const ada = keranjang.find(i => i.kode === kode);
-  ada ? (ada.jumlah += jml, ada.sub = ada.jumlah * hrg) : keranjang.push({kode, nama, harga:hrg, modal:mod, jumlah:jml, sub:hrg*jml});
-  resetFormBarang();
-  tampilKeranjang();
-  hitungTotal();
-  document.getElementById("cari").focus();
-  tampilPesan("✅ Barang ditambahkan", "success");
-}
-
-function tampilKeranjang() {
-  document.getElementById("isiKeranjang").innerHTML = keranjang.length ? keranjang.map((b,i) => `<tr class="border-b"><td class="p-2 font-bold">${b.nama}</td><td class="p-2 text-center font-bold">${b.jumlah}</td><td class="p-2 text-right font-bold">Rp ${b.sub.toLocaleString('id-ID')}</td><td class="p-2 text-center"><button onclick="hapus(${i})" class="text-red-500 font-bold text-lg">×</button></td></tr>`).join("") : `<tr><td colspan="4" class="p-4 text-center text-gray-500 font-bold">Belum ada barang</td></tr>`;
-}
-
-function hapus(i) { keranjang.splice(i,1); tampilKeranjang(); hitungTotal(); }
-
-function hitungTotal() { 
-  const t = keranjang.reduce((a,b)=>a+b.sub,0); 
-  const teksTotal = `Rp ${t.toLocaleString('id-ID')}`;
-  document.getElementById("total").innerText = teksTotal; 
-  document.getElementById("totalKeranjang").innerText = teksTotal; 
-  hitungKembali(); 
-}
-
-function hitungKembali() { 
-  const totalAngka = Number(document.getElementById("total").innerText.replace(/[^0-9]/g, "")) || 0; 
-  const bayarAngka = Number(document.getElementById("bayar").value) || 0; 
-  const sisa = Math.max(0, bayarAngka - totalAngka);
-  document.getElementById("kembali").innerText = `Rp ${sisa.toLocaleString('id-ID')}`; 
-}
-
-function resetFormBarang() { document.getElementById("cari").value = ""; document.getElementById("nama").value = ""; document.getElementById("hrg").value = ""; document.getElementById("stok").value = ""; document.getElementById("jml").value = 1; }
-
-function prosesSimpan() {
-  if(!keranjang.length) return tampilPesan("⚠️ Keranjang kosong!", "warning");
-
-  const total = Number(document.getElementById("total").innerText.replace(/[^0-9]/g, "")) || 0;
-  const bayar = Number(document.getElementById("bayar").value) || 0;
-  const kembali = Number(document.getElementById("kembali").innerText.replace(/[^0-9]/g, "")) || 0;
-
-  if(bayar < total) return tampilPesan("⚠️ Uang yang dibayar kurang dari total belanja!", "warning");
-
-  google.script.run
-    .withSuccessHandler(() => {
-      tampilPesan("✅ Transaksi berhasil disimpan!", "success");
-      const tombol = document.getElementById("tombolCetak");
-      tombol.disabled = false;
-      tombol.classList.remove("opacity-50", "cursor-not-allowed");
-      muatDataKasir();
-    })
-    .withFailureHandler(err => {
-      console.error(err);
-      tampilPesan("❌ Gagal simpan: " + err, "danger");
-    })
-    .simpanPenjualan(keranjang, bayar, kembali);
-}
-
-function cetakStruk() {
-  if(!keranjang.length) return tampilPesan("⚠️ Keranjang kosong!", "warning");
-
-  const tgl = new Date().toLocaleString('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  });
-
-  let html = `
-  <div style="width:48mm; margin:0 auto; padding:0; font-family:'Courier New', monospace; font-size:11px; line-height:1.5; font-weight:bold; color:#000;">
-    <div style="text-align:center; font-size:14px; margin:4px 0;">TOKO AI CELL</div>
-    <div style="text-align:center; font-size:12px; margin:2px 0;">Desa Pongkeru</div>
-    <div style="text-align:center; font-size:11px; margin:6px 0;">${tgl}</div>
-    <div style="border-bottom:1px dashed #000; margin:8px 0;"></div>`;
-
-  keranjang.forEach(i => {
-    html += `<div style="text-align:left; margin:2px 0;">${i.nama} ${i.jumlah}x${i.harga.toLocaleString('id-ID')}=${i.sub.toLocaleString('id-ID')}</div>`;
-  });
-
-  html += `
-    <div style="border-bottom:1px dashed #000; margin:8px 0;"></div>
-    <div style="text-align:right; margin:3px 0;">TOTAL &nbsp; ${document.getElementById("total").innerText}</div>
-    <div style="text-align:right; margin:3px 0;">DIBAYAR &nbsp; ${document.getElementById("bayar").value ? "Rp " + Number(document.getElementById("bayar").value).toLocaleString('id-ID') : "Rp 0"}</div>
-    <div style="text-align:right; margin:3px 0;">KEMBALI &nbsp; ${document.getElementById("kembali").innerText}</div>
-    <div style="border-bottom:1px dashed #000; margin:10px 0;"></div>
-    <div style="text-align:center; margin:6px 0;">TERIMA KASIH</div>
-    <div style="text-align:center; margin:6px 0;">Selamat Berbelanja Kembali</div>
-  </div>`;
-
-  const w = window.open("", "", "width=380,height=550");
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => { w.print(); w.close(); }, 300);
-}
-
-function resetSemua() { 
-  keranjang = []; 
-  tampilKeranjang(); 
-  hitungTotal(); 
-  document.getElementById("bayar").value = ""; 
-  document.getElementById("kembali").innerText = "Rp 0"; 
-  resetFormBarang(); 
-  const tombol = document.getElementById("tombolCetak");
-  tombol.disabled = true;
-  tombol.classList.add("opacity-50", "cursor-not-allowed");
-  document.getElementById("cari").focus(); 
-}
-
-function hitungLaba() { 
-  const m = Number(document.getElementById("mod").value || 0); 
-  const j = Number(document.getElementById("jual").value || 0); 
-  document.getElementById("laba").value = `Rp ${Math.max(0,j-m).toLocaleString('id-ID')}`; 
-}
-
-function simpanLayanan() { 
-  const j = Number(document.getElementById("jual").value || 0); 
-  if(j <= 0) return tampilPesan("⚠️ Isi harga jual!", "warning"); 
-  google.script.run
-    .withSuccessHandler(() => { 
-      tampilPesan("✅ Layanan tersimpan", "success"); 
-      document.getElementById("mod").value = ""; 
-      document.getElementById("jual").value = ""; 
-      document.getElementById("laba").value = ""; 
-    })
-    .withFailureHandler(() => tampilPesan("❌ Gagal simpan", "danger"))
-    .simpanLayanan(document.getElementById("jenis").value, "", document.getElementById("mod").value, j); 
-}
-
-function ubahFilter() { 
-  ["tglHari","tglBulan","tglTahun"].forEach(i=>document.getElementById(i).classList.add("hidden")); 
-  document.getElementById("tgl"+document.getElementById("filterTipe").value.charAt(0).toUpperCase()+document.getElementById("filterTipe").value.slice(1)).classList.remove("hidden"); 
-}
-
-// Fungsi Manajemen Data Barang Master
-function muatTabelBarangMaster() {
-  google.script.run.withSuccessHandler(data => {
-    masterBarangLengkap = data || [];
-    document.getElementById("cariBarangMaster").value = ""; 
-    tampilkanTabelBarang(masterBarangLengkap);
-  }).ambilDataBarangLengkap();
-}
-
-function tampilkanTabelBarang(dataBarang) {
-  const tbody = document.getElementById("tabelBarangMaster");
-  if(!dataBarang.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">Data barang tidak ditemukan</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = dataBarang.map(b => `
-    <tr class="border-b hover:bg-gray-50">
-      <td class="p-2 font-bold">${b.kode}</td>
-      <td class="p-2 font-bold">${b.nama}</td>
-      <td class="p-2 text-right font-bold">Rp ${Number(b.harga).toLocaleString('id-ID')}</td>
-      <td class="p-2 text-right font-bold">Rp ${Number(b.modal || 0).toLocaleString('id-ID')}</td>
-      <td class="p-2 text-center font-bold">${b.stok}</td>
-      <td class="p-2 text-center flex justify-center gap-2">
-        <button onclick="editBarangMaster(${b.row}, '${b.kode}', '${b.nama.replace(/'/g, "\\'")}', ${b.harga}, ${b.modal || 0}, ${b.stok})" class="bg-amber-500 text-white px-2 py-1 rounded text-xs font-bold">Edit</button>
-        <button onclick="hapusBarangMaster(${b.row}, '${b.kode}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">Hapus</button>
-      </td>
-    </tr>
-  `).join("");
-}
-
-function filterTabelBarangMaster() {
-  const kataKunci = document.getElementById("cariBarangMaster").value.trim().toLowerCase();
-  if(!kataKunci) {
-    tampilkanTabelBarang(masterBarangLengkap);
-    return;
-  }
-  const hasilFilter = masterBarangLengkap.filter(b => 
-    String(b.kode).toLowerCase().includes(kataKunci) || 
-    String(b.nama).toLowerCase().includes(kataKunci)
-  );
-  tampilkanTabelBarang(hasilFilter);
-}
-
-function bukaModalBarang(isEdit = false) {
-  document.getElementById("modalBarangJudul").innerText = isEdit ? "Edit Data Barang" : "Tambah Barang Baru";
-  if(!isEdit) {
-    document.getElementById("editRow").value = "";
-    document.getElementById("inputKodeBarang").value = "";
-    document.getElementById("inputNamaBarang").value = "";
-    document.getElementById("inputHargaJual").value = "";
-    document.getElementById("inputHargaModal").value = "";
-    document.getElementById("inputStokBarang").value = "0";
-    document.getElementById("inputKodeBarang").disabled = false;
-  }
-  document.getElementById("modalBarang").classList.remove("hidden");
-}
-
-function tutupModalBarang() {
-  document.getElementById("modalBarang").classList.add("hidden");
-}
-
-function editBarangMaster(row, kode, nama, harga, modal, stok) {
-  document.getElementById("editRow").value = row;
-  document.getElementById("inputKodeBarang").value = kode;
-  document.getElementById("inputKodeBarang").disabled = true; 
-  document.getElementById("inputNamaBarang").value = nama;
-  document.getElementById("inputHargaJual").value = harga;
-  document.getElementById("inputHargaModal").value = modal;
-  document.getElementById("inputStokBarang").value = stok;
-  bukaModalBarang(true);
-}
-
-function simpanDataBarangMaster() {
-  const row = document.getElementById("editRow").value;
-  const kode = document.getElementById("inputKodeBarang").value.trim();
-  const nama = document.getElementById("inputNamaBarang").value.trim();
-  const harga = Number(document.getElementById("inputHargaJual").value) || 0;
-  const modal = Number(document.getElementById("inputHargaModal").value) || 0;
-  const stok = Number(document.getElementById("inputStokBarang").value) || 0;
-
-  if(!kode || !nama || harga <= 0) {
-    tampilPesan("⚠️ Harap isi Kode, Nama, dan Harga Jual dengan benar!", "warning");
-    return;
-  }
-
-  const payload = { row, kode, nama, harga, modal, stok };
-
-  if(row) {
-    google.script.run.withSuccessHandler(res => {
-      tampilPesan(res.pesan, res.status === "success" ? "success" : "danger");
-      if(res.status === "success") {
-        tutupModalBarang();
-        muatTabelBarangMaster();
-        muatDataKasir();
-      }
-    }).updateBarang(payload);
+  if (u.toLowerCase() === 'admin' && p === 'clm2026') {
+    currentRole = 'admin';
+    localStorage.setItem('authRole', 'admin');
+    localStorage.setItem('authSubkon', '');
+    initDashboardSession();
   } else {
-    google.script.run.withSuccessHandler(res => {
-      tampilPesan(res.pesan, res.status === "success" ? "success" : "warning");
-      if(res.status === "success") {
-        tutupModalBarang();
-        muatTabelBarangMaster();
-        muatDataKasir();
-      }
-    }).tambahBarang(payload);
+    // Cek apakah input u cocok dengan salah satu subkon yang ada di database
+    let matchedSubkon = allAvailableSubkons.find(s => s.toLowerCase() === u.toLowerCase());
+    if (matchedSubkon) {
+      currentRole = matchedSubkon;
+      localStorage.setItem('authRole', 'subkon');
+      localStorage.setItem('authSubkon', matchedSubkon);
+      initDashboardSession();
+    } else {
+      document.getElementById('loginError').classList.remove('hidden');
+    }
   }
 }
 
-function hapusBarangMaster(row, kode) {
-  if(confirm("Yakin ingin menghapus barang dengan kode " + kode + "?")) {
-    google.script.run.withSuccessHandler(res => {
-      tampilPesan(res.pesan, "success");
-      muatTabelBarangMaster();
-      muatDataKasir();
-    }).hapusBarang(row);
+function logout() {
+  localStorage.removeItem('authRole');
+  localStorage.removeItem('authSubkon');
+  location.reload();
+}
+
+let allAvailableSubkons = [];
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // Ambil data terlebih dahulu untuk mendaftarkan list subkon secara otomatis
+  await fetchInitialDataForAuth();
+
+  let role = localStorage.getItem('authRole');
+  if (role) {
+    currentRole = role === 'admin' ? 'admin' : localStorage.getItem('authSubkon');
+    initDashboardSession();
+  }
+});
+
+async function fetchInitialDataForAuth() {
+  try {
+    let response = await fetch(WEB_APP_URL);
+    let json = await response.json();
+    
+    let subkonSet = new Set();
+    
+    // Kumpulkan subkon dari timbang & kecepatan
+    if (json.timbang) {
+      json.timbang.forEach(row => { if(row && row[3]) subkonSet.add(String(row[3]).trim()); });
+    }
+    if (json.kecepatan) {
+      json.kecepatan.forEach(row => { if(row && row[0] && !String(row[0]).toUpperCase().includes("SUBKON")) subkonSet.add(String(row[0]).trim()); });
+    }
+    allAvailableSubkons = Array.from(subkonSet);
+  } catch (e) {
+    console.error("Gagal inisialisasi auth subkon:", e);
   }
 }
 
-function muatLaporan() {
-  const tipe = document.getElementById("filterTipe").value;
-  const nilai = document.getElementById(tipe === "hari" ? "tglHari" : tipe === "bulan" ? "tglBulan" : "tglTahun").value;
-  if(!nilai) return tampilPesan("⚠️ Pilih tanggal dulu!", "warning");
-  const jenis = document.getElementById("jenisLap").value;
-  const lapOmset = document.getElementById("lapOmset");
-  const lapBrg = document.getElementById("lapLabaBrg");
-  const lapLay = document.getElementById("lapLabaLay");
-  const lapTotal = document.getElementById("lapTotal");
+function initDashboardSession() {
+  document.getElementById('loginModal').classList.add('hidden');
+  
+  if (currentRole === 'admin') {
+    document.getElementById('userSessionBadge').innerText = "Admin Pusat";
+    document.getElementById('sidebarSubkonLabel').innerText = "PT. Citra Lampia Mandiri";
+  } else {
+    document.getElementById('userSessionBadge').innerText = "Subkon: " + currentRole;
+    document.getElementById('sidebarSubkonLabel').innerText = currentRole;
+    
+    // Sembunyikan dropdown filter subkon karena sudah dikunci khusus untuk subkon tersebut
+    document.getElementById('filterSubkonTimbangWrapper').style.display = 'none';
+    document.getElementById('filterSubkonSpeedWrapper').style.display = 'none';
+  }
 
-  google.script.run.withSuccessHandler((dataJual) => {
-    let omsetBrg = 0, labaBrg = 0;
-    if(Array.isArray(dataJual)) dataJual.forEach(i => { omsetBrg += i.subtotal; labaBrg += i.laba; });
-    lapBrg.innerText = `Rp ${labaBrg.toLocaleString("id-ID")}`;
-
-    google.script.run.withSuccessHandler((dataLay) => {
-      let omsetLay = 0, labaLay = 0;
-      if(Array.isArray(dataLay)) dataLay.forEach(i => { omsetLay += i.jual; labaLay += i.laba; });
-      lapLay.innerText = `Rp ${labaLay.toLocaleString("id-ID")}`;
-      lapTotal.innerText = `Rp ${(labaBrg + labaLay).toLocaleString("id-ID")}`;
-
-      if(jenis === "barang") {
-        lapOmset.innerText = `Rp ${omsetBrg.toLocaleString("id-ID")}`;
-        document.getElementById("judulTabel").innerHTML = `<tr><th class="p-2 text-left font-bold">Tgl</th><th class="font-bold">No Trx</th><th class="font-bold">Kode</th><th class="font-bold">Nama</th><th class="text-right font-bold">Harga</th><th class="text-center font-bold">Jml</th><th class="text-right font-bold">Subtotal</th><th class="text-right font-bold">Laba</th></tr>`;
-        document.getElementById("isiTabel").innerHTML = dataJual.length ? dataJual.map(b => `<tr class="border-b hover:bg-gray-50"><td class="p-2 font-bold">${b.tgl}</td><td class="font-bold">${b.noTransaksi}</td><td class="font-bold">${b.idBarang}</td><td class="font-bold">${b.nama}</td><td class="text-right font-bold">Rp ${b.harga.toLocaleString("id-ID")}</td><td class="text-center font-bold">${b.jumlah}</td><td class="text-right font-bold">Rp ${b.subtotal.toLocaleString("id-ID")}</td><td class="text-right font-bold ${b.laba >=0 ? "text-green-600" : "text-red-600"}">Rp ${b.laba.toLocaleString("id-ID")}</td></tr>`).join("") : `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">Tidak ada data</td></tr>`;
-      } else {
-        lapOmset.innerText = `Rp ${omsetLay.toLocaleString("id-ID")}`;
-        document.getElementById("judulTabel").innerHTML = `<tr><td colspan="5" class="p-2 text-left font-bold">Tgl</th><th class="font-bold">Jenis</th><th class="text-right font-bold">Modal</th><th class="text-right font-bold">Jual</th><th class="text-right font-bold">Laba</th></tr>`;
-        document.getElementById("isiTabel").innerHTML = dataLay.length ? dataLay.map(b => `<tr class="border-b hover:bg-gray-50"><td class="p-2 font-bold">${b.tgl}</td><td class="font-bold">${b.jenis}</td><td class="text-right font-bold">Rp ${b.modal.toLocaleString("id-ID")}</td><td class="text-right font-bold">Rp ${b.jual.toLocaleString("id-ID")}</td><td class="text-right font-bold ${b.laba >=0 ? "text-green-600" : "text-red-600"}">Rp ${b.laba.toLocaleString("id-ID")}</td></tr>`).join("") : `<tr><td colspan="5" class="p-4 text-center text-gray-500 font-bold">Tidak ada data</td></tr>`;
-      }
-    }).withFailureHandler(() => tampilPesan("❌ Gagal baca layanan", "danger")).ambilLaporanLayanan(tipe, nilai);
-  }).withFailureHandler(() => tampilPesan("❌ Gagal baca penjualan", "danger")).ambilLaporanJual(tipe, nilai);
+  loadDataFromSpreadsheet();
 }
 
-function tampilPesan(teks, jenis) {
-  const kotak = document.getElementById("pesan");
-  kotak.textContent = teks; kotak.style.display = "block";
-  kotak.className = jenis === "success" ? "bg-green-100 text-green-800 border-l-4 border-green-500 font-bold" : jenis === "warning" ? "bg-yellow-100 text-yellow-800 border-l-4 border-yellow-500 font-bold" : "bg-red-100 text-red-800 border-l-4 border-red-500 font-bold";
-  setTimeout(() => kotak.style.display = "none", 2500);
+function switchPage(page) {
+  const btnTimbang = document.getElementById('navTimbang');
+  const btnKecepatan = document.getElementById('navKecepatan');
+  const secTimbang = document.getElementById('pageTimbang');
+  const secKecepatan = document.getElementById('pageKecepatan');
+  const pageTitle = document.getElementById('pageTitle');
+  if (page === 'timbang') {
+    btnTimbang.className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition bg-emerald-900 text-white shadow-sm";
+    btnKecepatan.className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-emerald-100 hover:bg-emerald-700/50";
+    secTimbang.classList.remove('hidden');
+    secKecepatan.classList.add('hidden');
+    pageTitle.innerText = "Dashboard Utama";
+  } else {
+    btnKecepatan.className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition bg-emerald-900 text-white shadow-sm";
+    btnTimbang.className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-emerald-100 hover:bg-emerald-700/50";
+    secKecepatan.classList.remove('hidden');
+    secTimbang.classList.add('hidden');
+    pageTitle.innerText = "Kecepatan Rata-Rata Unit";
+  }
+}
+
+async function loadDataFromSpreadsheet() {
+  document.getElementById('loadingIndicator').classList.remove('hidden');
+  try {
+    let response = await fetch(WEB_APP_URL);
+    let json = await response.json();
+    
+    let rowsTimbang = json.timbang || [];
+    globalTimbangData = [];
+    let headerTimbangIdx = rowsTimbang.findIndex(r => r && r.some(cell => String(cell).toUpperCase().includes("NETTO")));
+    if (headerTimbangIdx === -1) headerTimbangIdx = 5;
+    for (let i = headerTimbangIdx + 1; i < rowsTimbang.length; i++) {
+      let row = rowsTimbang[i];
+      if (!row || row.length < 12) continue;
+      let supplier = row[2] ? String(row[2]).trim() : "Lainnya";
+      let subkon = row[3] ? String(row[3]).trim() : "";
+      let netto = parseFloat(row[10]);
+      let rawDateOut = row[14] || row[13] || row[12] || "";
+      
+      // Jika login sebagai subkon, saring langsung datanya
+      if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
+
+      if (subkon && !isNaN(netto) && netto > 0) {
+        globalTimbangData.push({
+          supplier: supplier,
+          subkon: subkon,
+          netto: netto,
+          dateOut: parseUniversalDate(rawDateOut)
+        });
+      }
+    }
+
+    let rowsKecepatan = json.kecepatan || [];
+    globalKecepatanData = [];
+    rawDataKecepatanTable = [];
+    let headerSpeedIdx = rowsKecepatan.findIndex(r => r && r.some(cell => String(cell).toUpperCase().includes("SUBKON")));
+    if (headerSpeedIdx === -1) headerSpeedIdx = 6;
+    
+    for (let i = headerSpeedIdx + 1; i < rowsKecepatan.length; i++) {
+      let row = rowsKecepatan[i];
+      if (!row || row.length === 0) continue;
+      
+      let subkon = row[0] ? String(row[0]).trim() : "";
+      let noLambung = row[1] ? String(row[1]).trim() : "-";
+      let rawDateIn = row[3] || "";
+      let speedVal = parseFloat(row[5]);
+      let rawKlasifikasi = row[6] ? String(row[6]).trim() : "";
+
+      // Jika login sebagai subkon, saring langsung datanya
+      if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
+      
+      let klasifikasi = "STANDAR";
+      let valStr = String(rawKlasifikasi).toUpperCase();
+      if (valStr.includes("UNDER") || valStr.includes("LAMBAT")) {
+        klasifikasi = "UNDER SPEED";
+      } else if (valStr.includes("OVER") || valStr.includes("CEPAT") || valStr.includes("TINGGI")) {
+        klasifikasi = "OVER SPEED";
+      } else if (valStr.includes("STANDAR")) {
+        klasifikasi = "STANDAR";
+      } else if (!isNaN(speedVal)) {
+        if (speedVal < 18) {
+          klasifikasi = "UNDER SPEED";
+        } else if (speedVal > 23.2) {
+          klasifikasi = "OVER SPEED";
+        } else {
+          klasifikasi = "STANDAR";
+        }
+      }
+
+      if (subkon && !subkon.toUpperCase().includes("SUBKON") && !subkon.toUpperCase().includes("KLASIFIKASI")) {
+        let formattedDate = parseUniversalDate(rawDateIn);
+        let textRisk = "Low Risk";
+        if (klasifikasi === "OVER SPEED") {
+          textRisk = "High Risk";
+        } else if (klasifikasi === "UNDER SPEED") {
+          textRisk = "Moderate Risk";
+        }
+
+        let item = {
+          subkon: subkon,
+          noLambung: noLambung,
+          date: formattedDate,
+          speed: !isNaN(speedVal) ? speedVal.toFixed(2) : "-",
+          klasifikasi: klasifikasi,
+          risk: textRisk
+        };
+        globalKecepatanData.push(item);
+        rawDataKecepatanTable.push(item);
+      }
+    }
+
+    if (currentRole === 'admin') {
+      populateDropdowns();
+    }
+
+    if (globalTimbangData.length > 0) {
+      let datesTimbang = globalTimbangData.map(i => i.dateOut).filter(d => d);
+      if (datesTimbang.length > 0) {
+        datesTimbang.sort();
+        document.getElementById('timbangStart').value = datesTimbang[0];
+        document.getElementById('timbangEnd').value = datesTimbang[datesTimbang.length - 1];
+      }
+    }
+
+    if (globalKecepatanData.length > 0) {
+      let datesSpeed = globalKecepatanData.map(i => i.date).filter(d => d);
+      if (datesSpeed.length > 0) {
+        datesSpeed.sort();
+        document.getElementById('speedStart').value = datesSpeed[0];
+        document.getElementById('speedEnd').value = datesSpeed[datesSpeed.length - 1];
+      }
+    }
+
+    applyTimbangFilter();
+    applySpeedFilter();
+
+  } catch (error) {
+    console.error("Gagal memuat data:", error);
+  } finally {
+    document.getElementById('loadingIndicator').classList.add('hidden');
+  }
+}
+
+function parseUniversalDate(dateVal) {
+  if (!dateVal) return "";
+  if (!isNaN(dateVal) && Number(dateVal) > 30000) {
+    let d = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
+  let strVal = String(dateVal).trim();
+  const months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+  let parts = strVal.split(/[\/\-\s]/);
+  if (parts.length === 3 && months[parts[1].toLowerCase()]) {
+    return `${parts[2].length === 2 ? '20'+parts[2] : parts[2]}-${months[parts[1].toLowerCase()]}-${parts[0].padStart(2, '0')}`;
+  }
+  let d = new Date(dateVal);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return strVal.substring(0, 10);
+}
+
+function populateDropdowns() {
+  let subkonTimbang = [...new Set(globalTimbangData.map(i => i.subkon))].sort();
+  let selectTimbang = document.getElementById('timbangSubkon');
+  selectTimbang.innerHTML = '<option value="">Semua Subkon</option>';
+  subkonTimbang.forEach(s => selectTimbang.add(new Option(s, s)));
+
+  let subkonKecepatan = [...new Set(globalKecepatanData.map(i => i.subkon))].sort();
+  let selectKecepatan = document.getElementById('speedSubkon');
+  selectKecepatan.innerHTML = '<option value="">Semua Subkon</option>';
+  subkonKecepatan.forEach(s => selectKecepatan.add(new Option(s, s)));
+}
+
+function applyTimbangFilter() {
+  let tStart = document.getElementById('timbangStart').value;
+  let tEnd = document.getElementById('timbangEnd').value;
+  let tSubkon = currentRole === 'admin' ? document.getElementById('timbangSubkon').value : currentRole;
+
+  let filtered = globalTimbangData.filter(item => {
+    let matchDate = true;
+    if (item.dateOut) {
+      if (tStart && tEnd) matchDate = (item.dateOut >= tStart && item.dateOut <= tEnd);
+      else if (tStart) matchDate = (item.dateOut >= tStart);
+      else if (tEnd) matchDate = (item.dateOut <= tEnd);
+    }
+    return matchDate && (tSubkon ? item.subkon.toLowerCase() === tSubkon.toLowerCase() : true);
+  });
+  renderDashboardTimbang(filtered);
+}
+
+function applySpeedFilter() {
+  let sStart = document.getElementById('speedStart').value;
+  let sEnd = document.getElementById('speedEnd').value;
+  let sSubkon = currentRole === 'admin' ? document.getElementById('speedSubkon').value : currentRole;
+  let sKlasifikasi = document.getElementById('speedKlasifikasi').value;
+
+  filteredSpeedExportData = globalKecepatanData.filter(item => {
+    let matchDate = true;
+    if (item.date) {
+      if (sStart && sEnd) matchDate = (item.date >= sStart && item.date <= sEnd);
+      else if (sStart) matchDate = (item.date >= sStart);
+      else if (sEnd) matchDate = (item.date <= sEnd);
+    }
+    let matchSubkon = sSubkon ? (item.subkon.toLowerCase() === sSubkon.toLowerCase()) : true;
+    let matchKlasifikasi = sKlasifikasi ? (item.klasifikasi === sKlasifikasi) : true;
+    return matchDate && matchSubkon && matchKlasifikasi;
+  });
+
+  renderDashboardKecepatan(filteredSpeedExportData);
+  renderTabelKecepatan(filteredSpeedExportData);
+}
+
+function renderDashboardTimbang(data) {
+  let totalNetto = data.reduce((a, b) => a + b.netto, 0);
+  document.getElementById('statTotalNetto').innerText = totalNetto.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ton';
+  document.getElementById('statTotalTx').innerText = data.length;
+
+  let subMap = {}; data.forEach(i => subMap[i.subkon] = (subMap[i.subkon] || 0) + i.netto);
+  if(c1) c1.destroy();
+  c1 = new Chart(document.getElementById('chartSubkon'), {
+    type: 'bar', plugins: [ChartDataLabels],
+    data: { labels: Object.keys(subMap), datasets: [{ label: 'Netto (Ton)', data: Object.values(subMap), backgroundColor: '#059669' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { datalabels: { anchor: 'end', align: 'top', formatter: (v) => v.toLocaleString('id-ID', { maximumFractionDigits: 0 }), font: { size: 10, weight: 'bold' }, color: '#334155' } },
+      scales: { x: { ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 45, minRotation: 45 } }, y: { grace: '15%' } }
+    }
+  });
+
+  let supMap = {}; data.forEach(i => supMap[i.supplier] = (supMap[i.supplier] || 0) + i.netto);
+  if(c2) c2.destroy();
+  c2 = new Chart(document.getElementById('chartSupplier'), {
+    type: 'bar', plugins: [ChartDataLabels],
+    data: { labels: Object.keys(supMap), datasets: [{ label: 'Netto (Ton)', data: Object.values(supMap), backgroundColor: '#3b82f6' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { datalabels: { anchor: 'end', align: 'top', formatter: (v) => v.toLocaleString('id-ID', { maximumFractionDigits: 0 }), font: { size: 10, weight: 'bold' }, color: '#334155' } },
+      scales: { x: { ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 20, minRotation: 0 } }, y: { grace: '15%' } }
+    }
+  });
+}
+
+function renderDashboardKecepatan(data) {
+  let totalStd = data.filter(i => i.klasifikasi === 'STANDAR').length;
+  let totalUnder = data.filter(i => i.klasifikasi === 'UNDER SPEED').length;
+  let totalOver = data.filter(i => i.klasifikasi === 'OVER SPEED').length;
+  document.getElementById('statTotalStd').innerText = totalStd;
+  document.getElementById('statTotalUnder').innerText = totalUnder;
+  document.getElementById('statTotalOver').innerText = totalOver;
+
+  let subkons = [...new Set(data.map(i => i.subkon))];
+  let std = subkons.map(s => data.filter(i => i.subkon === s && i.klasifikasi === 'STANDAR').length);
+  let under = subkons.map(s => data.filter(i => i.subkon === s && i.klasifikasi === 'UNDER SPEED').length);
+  let over = subkons.map(s => data.filter(i => i.subkon === s && i.klasifikasi === 'OVER SPEED').length);
+
+  if(c3) c3.destroy();
+  c3 = new Chart(document.getElementById('chartKecepatan'), {
+    type: 'bar', plugins: [ChartDataLabels],
+    data: {
+      labels: subkons,
+      datasets: [
+        { label: 'Standar', data: std, backgroundColor: '#10b981' },
+        { label: 'Under Speed', data: under, backgroundColor: '#f59e0b' },
+        { label: 'Over Speed', data: over, backgroundColor: '#f43f5e' }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { datalabels: { anchor: 'center', align: 'center', formatter: (v) => v > 0 ? v : '', font: { size: 10, weight: 'bold' }, color: '#ffffff' } }, scales: { x: { stacked: true }, y: { stacked: true, grace: '10%' } } }
+  });
+
+  let persenData = subkons.map(s => {
+    let totalTrip = globalKecepatanData.filter(i => i.subkon === s).length;
+    let overTrip = globalKecepatanData.filter(i => i.subkon === s && i.klasifikasi === 'OVER SPEED').length;
+    return totalTrip === 0 ? 0 : parseFloat(((overTrip / totalTrip) * 100).toFixed(1));
+  });
+
+  if(c4) c4.destroy();
+  c4 = new Chart(document.getElementById('chartPersenOverSpeed'), {
+    type: 'bar', plugins: [ChartDataLabels],
+    data: { labels: subkons, datasets: [{ label: 'Persentase Over Speed (%)', data: persenData, backgroundColor: '#ef4444' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { datalabels: { anchor: 'end', align: 'top', formatter: (v) => v > 0 ? v + '%' : '', font: { size: 10, weight: 'bold' }, color: '#334155' } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' }, grace: '10%' } } }
+  });
+
+  if(c5) c5.destroy();
+  c5 = new Chart(document.getElementById('chartPieGlobal'), {
+    type: 'doughnut', plugins: [ChartDataLabels],
+    data: { labels: ['Standar', 'Under Speed', 'Over Speed'], datasets: [{ data: [totalStd, totalUnder, totalOver], backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'] }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, datalabels: { formatter: (value, ctx) => { let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); if (sum === 0 || value === 0) return ''; return (value * 100 / sum).toFixed(1) + "%"; }, color: '#ffffff', font: { weight: 'bold', size: 11 } } }
+    }
+  });
+}
+
+function renderTabelKecepatan(data) {
+  let tbody = document.getElementById('speedTableBody');
+  tbody.innerHTML = "";
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Tidak ada data yang cocok dengan filter</td></tr>`;
+    return;
+  }
+  let displayData = data.slice(0, 50);
+  displayData.forEach(item => {
+    let badgeColor = "bg-emerald-100 text-emerald-800";
+    if (item.klasifikasi === "OVER SPEED") badgeColor = "bg-rose-100 text-rose-800";
+    else if (item.klasifikasi === "UNDER SPEED") badgeColor = "bg-amber-100 text-amber-800";
+
+    let row = `<tr class="border-b hover:bg-slate-50 transition">
+      <td class="p-3 font-semibold text-slate-800">${item.subkon}</td>
+      <td class="p-3 font-semibold text-emerald-700">${item.noLambung}</td>
+      <td class="p-3 text-slate-600">${item.date || '-'}</td>
+      <td class="p-3 text-slate-600">${item.speed}</td>
+      <td class="p-3"><span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeColor}">${item.klasifikasi}</span></td>
+      <td class="p-3 text-slate-600 font-medium">${item.risk}</td>
+    </tr>`;
+    tbody.innerHTML += row;
+  });
+}
+
+// Fungsi Download Excel (.xlsx) murni sesuai data yang tampil (Admin: Semua, Subkon: Miliknya sendiri)
+function downloadExcel() {
+  if (!filteredSpeedExportData || filteredSpeedExportData.length === 0) {
+    alert("Tidak ada data untuk diunduh!");
+    return;
+  }
+
+  let excelData = filteredSpeedExportData.map(item => ({
+    "Subkon": item.subkon,
+    "No. Lambung": item.noLambung,
+    "Tanggal": item.date,
+    "Kecepatan (Km/Jam)": parseFloat(item.speed) || item.speed,
+    "Klasifikasi": item.klasifikasi,
+    "Risk-Based Assessment": item.risk
+  }));
+
+  let worksheet = XLSX.utils.json_to_sheet(excelData);
+  let workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Log Kecepatan");
+
+  let fileName = currentRole === 'admin' ? "detail_kecepatan_all_subkon.xlsx" : `detail_kecepatan_${currentRole.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
 }
 </script>
 </body>
