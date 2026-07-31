@@ -28,14 +28,16 @@
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Username / Nama Subkon</label>
         <input type="text" id="loginUser" required class="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-emerald-600" placeholder="Ketik admin atau nama subkon">
-        <p class="text-[10px] text-slate-400 mt-1">Contoh: <b>PT. BUMI JASA UTAMA</b> atau <b>PT. MPM</b></p>
+        <p class="text-[10px] text-slate-400 mt-1">Sandi semua subkon: <b>subkon2026</b></p>
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
         <input type="password" id="loginPass" required class="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-emerald-600" placeholder="Masukkan password">
       </div>
       <p id="loginError" class="text-xs text-rose-500 font-semibold hidden">Username atau password salah!</p>
-      <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-xl text-sm transition shadow-sm">Masuk Dashboard</button>
+      <button type="submit" id="btnLoginSubmit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2">
+        <span>Masuk Dashboard</span>
+      </button>
     </form>
   </div>
 </div>
@@ -161,7 +163,14 @@ let globalTimbangData = [];
 let globalKecepatanData = [];
 let rawDataKecepatanTable = [];
 let filteredSpeedExportData = [];
-let allAvailableSubkons = [];
+
+// Daftar cadangan subkon agar login instan tanpa menunggu jaringan
+let allAvailableSubkons = [
+  "PT. ALHUSEIN SUJIWA MALILI",
+  "BUMI SIKKUNG SULAWESI",
+  "PT. BUMI JASA UTAMA",
+  "PT. MPM"
+];
 
 let currentRole = 'admin';
 
@@ -172,33 +181,38 @@ function toggleSidebar() {
   backdrop.classList.toggle('hidden');
 }
 
-async function handleLogin(event) {
+function handleLogin(event) {
   event.preventDefault();
   let u = document.getElementById('loginUser').value.trim();
   let p = document.getElementById('loginPass').value.trim();
+  let errorEl = document.getElementById('loginError');
+  let btnSubmit = document.getElementById('btnLoginSubmit');
 
-  // Pastikan data subkon sudah ditarik minimal sekali untuk pencocokan instan
-  if (allAvailableSubkons.length === 0) {
-    await fetchInitialDataForAuth();
-  }
+  errorEl.classList.add('hidden');
+  btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...`;
+  btnSubmit.disabled = true;
 
-  if (u.toLowerCase() === 'admin' && p === 'clm2026') {
-    currentRole = 'admin';
-    localStorage.setItem('authRole', 'admin');
-    localStorage.setItem('authSubkon', '');
-    initDashboardSession();
-  } else {
-    // Cek apakah password subkon benar ("subkon2026") dan username cocok dengan subkon di database
-    let matchedSubkon = allAvailableSubkons.find(s => s.toLowerCase() === u.toLowerCase());
-    if (matchedSubkon && p === 'subkon2026') {
-      currentRole = matchedSubkon;
-      localStorage.setItem('authRole', 'subkon');
-      localStorage.setItem('authSubkon', matchedSubkon);
+  setTimeout(() => {
+    if (u.toLowerCase() === 'admin' && p === 'clm2026') {
+      currentRole = 'admin';
+      localStorage.setItem('authRole', 'admin');
+      localStorage.setItem('authSubkon', '');
       initDashboardSession();
     } else {
-      document.getElementById('loginError').classList.remove('hidden');
+      // Validasi instan ke daftar subkon dengan password "subkon2026"
+      let matchedSubkon = allAvailableSubkons.find(s => s.toLowerCase() === u.toLowerCase());
+      if (matchedSubkon && p === 'subkon2026') {
+        currentRole = matchedSubkon;
+        localStorage.setItem('authRole', 'subkon');
+        localStorage.setItem('authSubkon', matchedSubkon);
+        initDashboardSession();
+      } else {
+        errorEl.classList.remove('hidden');
+        btnSubmit.innerHTML = `<span>Masuk Dashboard</span>`;
+        btnSubmit.disabled = false;
+      }
     }
-  }
+  }, 100); // Respon kilat instan tanpa delay jaringan
 }
 
 function logout() {
@@ -208,7 +222,8 @@ function logout() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await fetchInitialDataForAuth();
+  // Latar belakang menyelaraskan daftar subkon dari server secara senyap
+  fetchInitialDataForAuth();
 
   let role = localStorage.getItem('authRole');
   if (role) {
@@ -221,7 +236,7 @@ async function fetchInitialDataForAuth() {
   try {
     let response = await fetch(WEB_APP_URL);
     let json = await response.json();
-    let subkonSet = new Set();
+    let subkonSet = new Set(allAvailableSubkons);
     
     if (json.timbang) {
       json.timbang.forEach(row => { if(row && row[3]) subkonSet.add(String(row[3]).trim()); });
@@ -231,7 +246,7 @@ async function fetchInitialDataForAuth() {
     }
     allAvailableSubkons = Array.from(subkonSet);
   } catch (e) {
-    console.error("Gagal inisialisasi auth subkon:", e);
+    console.error("Gagal sinkronisasi background subkon:", e);
   }
 }
 
