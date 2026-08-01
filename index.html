@@ -164,14 +164,8 @@ let globalKecepatanData = [];
 let rawDataKecepatanTable = [];
 let filteredSpeedExportData = [];
 
-// Daftar cadangan subkon agar login instan tanpa menunggu jaringan
-let allAvailableSubkons = [
-  "PT. ALHUSEIN SUJIWA MALILI",
-  "BUMI SIKKUNG SULAWESI",
-  "PT. BUMI JASA UTAMA",
-  "PT. MPM"
-];
-
+// Cache memori lokal yang langsung aktif tanpa delay
+let cachedSubkons = JSON.parse(localStorage.getItem('cachedSubkons') || '[]');
 let currentRole = 'admin';
 
 function toggleSidebar() {
@@ -181,7 +175,7 @@ function toggleSidebar() {
   backdrop.classList.toggle('hidden');
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   let u = document.getElementById('loginUser').value.trim();
   let p = document.getElementById('loginPass').value.trim();
@@ -192,27 +186,48 @@ function handleLogin(event) {
   btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...`;
   btnSubmit.disabled = true;
 
-  setTimeout(() => {
-    if (u.toLowerCase() === 'admin' && p === 'clm2026') {
-      currentRole = 'admin';
-      localStorage.setItem('authRole', 'admin');
-      localStorage.setItem('authSubkon', '');
-      initDashboardSession();
-    } else {
-      // Validasi instan ke daftar subkon dengan password "subkon2026"
-      let matchedSubkon = allAvailableSubkons.find(s => s.toLowerCase() === u.toLowerCase());
-      if (matchedSubkon && p === 'subkon2026') {
-        currentRole = matchedSubkon;
-        localStorage.setItem('authRole', 'subkon');
-        localStorage.setItem('authSubkon', matchedSubkon);
-        initDashboardSession();
-      } else {
-        errorEl.classList.remove('hidden');
-        btnSubmit.innerHTML = `<span>Masuk Dashboard</span>`;
-        btnSubmit.disabled = false;
-      }
+  // Cek Admin Pusat
+  if (u.toLowerCase() === 'admin' && p === 'clm2026') {
+    currentRole = 'admin';
+    localStorage.setItem('authRole', 'admin');
+    localStorage.setItem('authSubkon', '');
+    initDashboardSession();
+    return;
+  }
+
+  // Cek Password Universal Subkon ("subkon2026")
+  if (p === 'subkon2026') {
+    // Jika cache subkon kosong, ambil data kilat sekali dari web app
+    if (cachedSubkons.length === 0) {
+      await fetchSubkonListQuick();
     }
-  }, 100); // Respon kilat instan tanpa delay jaringan
+
+    let matchedSubkon = cachedSubkons.find(s => s.toLowerCase() === u.toLowerCase());
+    if (matchedSubkon) {
+      currentRole = matchedSubkon;
+      localStorage.setItem('authRole', 'subkon');
+      localStorage.setItem('authSubkon', matchedSubkon);
+      initDashboardSession();
+      return;
+    }
+  }
+
+  // Jika gagal
+  errorEl.classList.remove('hidden');
+  btnSubmit.innerHTML = `<span>Masuk Dashboard</span>`;
+  btnSubmit.disabled = false;
+}
+
+async function fetchSubkonListQuick() {
+  try {
+    let res = await fetch(WEB_APP_URL);
+    let json = await res.json();
+    let set = new Set(["PT. MPM", "PT. BUMI JASA UTAMA"]);
+    if (json.timbang) json.timbang.forEach(r => { if(r && r[3]) set.add(String(r[3]).trim()); });
+    if (json.kecepatan) json.kecepatan.forEach(r => { if(r && r[0] && !String(r[0]).toUpperCase().includes("SUBKON")) set.add(String(r[0]).trim()); });
+    cachedSubkons = Array.from(set);
+    localStorage.setItem('cachedSubkons', JSON.stringify(cachedSubkons));
+  } catch(e) {}
 }
 
 function logout() {
@@ -222,8 +237,8 @@ function logout() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Latar belakang menyelaraskan daftar subkon dari server secara senyap
-  fetchInitialDataForAuth();
+  // Unduh daftar subkon di latar belakang untuk memperbarui cache
+  fetchSubkonListQuick();
 
   let role = localStorage.getItem('authRole');
   if (role) {
@@ -231,24 +246,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     initDashboardSession();
   }
 });
-
-async function fetchInitialDataForAuth() {
-  try {
-    let response = await fetch(WEB_APP_URL);
-    let json = await response.json();
-    let subkonSet = new Set(allAvailableSubkons);
-    
-    if (json.timbang) {
-      json.timbang.forEach(row => { if(row && row[3]) subkonSet.add(String(row[3]).trim()); });
-    }
-    if (json.kecepatan) {
-      json.kecepatan.forEach(row => { if(row && row[0] && !String(row[0]).toUpperCase().includes("SUBKON")) subkonSet.add(String(row[0]).trim()); });
-    }
-    allAvailableSubkons = Array.from(subkonSet);
-  } catch (e) {
-    console.error("Gagal sinkronisasi background subkon:", e);
-  }
-}
 
 function initDashboardSession() {
   document.getElementById('loginModal').classList.add('hidden');
@@ -295,6 +292,8 @@ async function loadDataFromSpreadsheet() {
     
     let rowsTimbang = json.timbang || [];
     globalTimbangData = [];
+    let subkonSetDynamic = new Set();
+
     let headerTimbangIdx = rowsTimbang.findIndex(r => r && r.some(cell => String(cell).toUpperCase().includes("NETTO")));
     if (headerTimbangIdx === -1) headerTimbangIdx = 5;
     for (let i = headerTimbangIdx + 1; i < rowsTimbang.length; i++) {
@@ -305,6 +304,8 @@ async function loadDataFromSpreadsheet() {
       let netto = parseFloat(row[10]);
       let rawDateOut = row[14] || row[13] || row[12] || "";
       
+      if (subkon) subkonSetDynamic.add(subkon);
+
       if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
 
       if (subkon && !isNaN(netto) && netto > 0) {
@@ -332,6 +333,8 @@ async function loadDataFromSpreadsheet() {
       let rawDateIn = row[3] || "";
       let speedVal = parseFloat(row[5]);
       let rawKlasifikasi = row[6] ? String(row[6]).trim() : "";
+
+      if (subkon && !subkon.toUpperCase().includes("SUBKON")) subkonSetDynamic.add(subkon);
 
       if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
       
@@ -373,6 +376,11 @@ async function loadDataFromSpreadsheet() {
         globalKecepatanData.push(item);
         rawDataKecepatanTable.push(item);
       }
+    }
+
+    if (subkonSetDynamic.size > 0) {
+      cachedSubkons = Array.from(subkonSetDynamic);
+      localStorage.setItem('cachedSubkons', JSON.stringify(cachedSubkons));
     }
 
     if (currentRole === 'admin') {
