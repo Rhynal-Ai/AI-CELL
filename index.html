@@ -85,6 +85,7 @@
       </div>
       <div><button onclick="applyTimbangFilter()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2 rounded-xl text-sm transition shadow-sm flex items-center gap-2"><i class="fa-solid fa-filter"></i> Filter</button></div>
     </div>
+    
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-600 flex justify-between items-center">
         <div><p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Netto</p><h3 id="statTotalNetto" class="text-2xl md:text-3xl font-extrabold text-slate-800 mt-1">0.00 ton</h3></div>
@@ -95,6 +96,15 @@
         <div class="bg-blue-50 p-4 rounded-xl text-blue-500 text-xl"><i class="fa-solid fa-truck"></i></div>
       </div>
     </div>
+
+    <!-- TOMBOL DOWNLOAD EXCEL DASHBOARD UTAMA -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center flex-wrap gap-3">
+      <h3 class="text-sm font-bold text-slate-800">Unduh Data Transaksi Jembatan Timbang</h3>
+      <button onclick="downloadTimbangExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2">
+        <i class="fa-solid fa-file-excel"></i> Download Excel (.xlsx)
+      </button>
+    </div>
+
     <div class="space-y-6">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[450px] flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Netto Berdasarkan Subkon</h3><div class="relative flex-grow w-full h-[400px]"><canvas id="chartSubkon"></canvas></div></div>
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[400px] flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Netto Berdasarkan Supplier</h3><div class="relative flex-grow w-full h-[350px]"><canvas id="chartSupplier"></canvas></div></div>
@@ -127,11 +137,10 @@
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-96 flex flex-col"><h3 class="text-sm font-bold text-slate-800 mb-4">Proporsi Total Kecepatan</h3><div class="relative flex-grow"><canvas id="chartPieGlobal"></canvas></div></div>
     </div>
 
-    <!-- TABEL DETAIL DATA KECEPATAN + TOMBOL DOWNLOAD EXCEL -->
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col space-y-4">
       <div class="flex justify-between items-center flex-wrap gap-3">
         <h3 class="text-sm font-bold text-slate-800">Detail Log Kecepatan Unit</h3>
-        <button onclick="downloadExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2">
+        <button onclick="downloadSpeedExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2">
           <i class="fa-solid fa-file-excel"></i> Download Excel (.xlsx)
         </button>
       </div>
@@ -160,11 +169,11 @@
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzCQP6G5D9l1CwQQdNawSQnRbDxaxo4ai3S40_wF5cnvSrIllS-QqwpIul1DOEbDKsg/exec";
 let c1, c2, c3, c4, c5;
 let globalTimbangData = [];
+let filteredTimbangExportData = [];
 let globalKecepatanData = [];
 let rawDataKecepatanTable = [];
 let filteredSpeedExportData = [];
 
-// Cache memori lokal yang langsung aktif tanpa delay
 let cachedSubkons = JSON.parse(localStorage.getItem('cachedSubkons') || '[]');
 let currentRole = 'admin';
 
@@ -186,7 +195,6 @@ async function handleLogin(event) {
   btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...`;
   btnSubmit.disabled = true;
 
-  // Cek Admin Pusat
   if (u.toLowerCase() === 'admin' && p === 'clm2026') {
     currentRole = 'admin';
     localStorage.setItem('authRole', 'admin');
@@ -195,13 +203,10 @@ async function handleLogin(event) {
     return;
   }
 
-  // Cek Password Universal Subkon ("subkon2026")
   if (p === 'subkon2026') {
-    // Jika cache subkon kosong, ambil data kilat sekali dari web app
     if (cachedSubkons.length === 0) {
       await fetchSubkonListQuick();
     }
-
     let matchedSubkon = cachedSubkons.find(s => s.toLowerCase() === u.toLowerCase());
     if (matchedSubkon) {
       currentRole = matchedSubkon;
@@ -212,7 +217,6 @@ async function handleLogin(event) {
     }
   }
 
-  // Jika gagal
   errorEl.classList.remove('hidden');
   btnSubmit.innerHTML = `<span>Masuk Dashboard</span>`;
   btnSubmit.disabled = false;
@@ -237,9 +241,7 @@ function logout() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Unduh daftar subkon di latar belakang untuk memperbarui cache
   fetchSubkonListQuick();
-
   let role = localStorage.getItem('authRole');
   if (role) {
     currentRole = role === 'admin' ? 'admin' : localStorage.getItem('authSubkon');
@@ -249,7 +251,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 function initDashboardSession() {
   document.getElementById('loginModal').classList.add('hidden');
-  
   if (currentRole === 'admin') {
     document.getElementById('userSessionBadge').innerText = "Admin Pusat";
     document.getElementById('sidebarSubkonLabel').innerText = "PT. Citra Lampia Mandiri";
@@ -259,7 +260,6 @@ function initDashboardSession() {
     document.getElementById('filterSubkonTimbangWrapper').style.display = 'none';
     document.getElementById('filterSubkonSpeedWrapper').style.display = 'none';
   }
-
   loadDataFromSpreadsheet();
 }
 
@@ -296,20 +296,22 @@ async function loadDataFromSpreadsheet() {
 
     let headerTimbangIdx = rowsTimbang.findIndex(r => r && r.some(cell => String(cell).toUpperCase().includes("NETTO")));
     if (headerTimbangIdx === -1) headerTimbangIdx = 5;
+
     for (let i = headerTimbangIdx + 1; i < rowsTimbang.length; i++) {
       let row = rowsTimbang[i];
       if (!row || row.length < 12) continue;
+      
       let supplier = row[2] ? String(row[2]).trim() : "Lainnya";
       let subkon = row[3] ? String(row[3]).trim() : "";
       let netto = parseFloat(row[10]);
       let rawDateOut = row[14] || row[13] || row[12] || "";
       
       if (subkon) subkonSetDynamic.add(subkon);
-
       if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
 
       if (subkon && !isNaN(netto) && netto > 0) {
         globalTimbangData.push({
+          rawRow: row, // Menyimpan baris mentah asli spreadsheet untuk ekspor fleksibel
           supplier: supplier,
           subkon: subkon,
           netto: netto,
@@ -335,7 +337,6 @@ async function loadDataFromSpreadsheet() {
       let rawKlasifikasi = row[6] ? String(row[6]).trim() : "";
 
       if (subkon && !subkon.toUpperCase().includes("SUBKON")) subkonSetDynamic.add(subkon);
-
       if (currentRole !== 'admin' && subkon.toLowerCase() !== currentRole.toLowerCase()) continue;
       
       let klasifikasi = "STANDAR";
@@ -359,11 +360,8 @@ async function loadDataFromSpreadsheet() {
       if (subkon && !subkon.toUpperCase().includes("SUBKON") && !subkon.toUpperCase().includes("KLASIFIKASI")) {
         let formattedDate = parseUniversalDate(rawDateIn);
         let textRisk = "Low Risk";
-        if (klasifikasi === "OVER SPEED") {
-          textRisk = "High Risk";
-        } else if (klasifikasi === "UNDER SPEED") {
-          textRisk = "Moderate Risk";
-        }
+        if (klasifikasi === "OVER SPEED") textRisk = "High Risk";
+        else if (klasifikasi === "UNDER SPEED") textRisk = "Moderate Risk";
 
         let item = {
           subkon: subkon,
@@ -451,7 +449,7 @@ function applyTimbangFilter() {
   let tEnd = document.getElementById('timbangEnd').value;
   let tSubkon = currentRole === 'admin' ? document.getElementById('timbangSubkon').value : currentRole;
 
-  let filtered = globalTimbangData.filter(item => {
+  filteredTimbangExportData = globalTimbangData.filter(item => {
     let matchDate = true;
     if (item.dateOut) {
       if (tStart && tEnd) matchDate = (item.dateOut >= tStart && item.dateOut <= tEnd);
@@ -460,7 +458,7 @@ function applyTimbangFilter() {
     }
     return matchDate && (tSubkon ? item.subkon.toLowerCase() === tSubkon.toLowerCase() : true);
   });
-  renderDashboardTimbang(filtered);
+  renderDashboardTimbang(filteredTimbangExportData);
 }
 
 function applySpeedFilter() {
@@ -591,9 +589,43 @@ function renderTabelKecepatan(data) {
   });
 }
 
-function downloadExcel() {
+// Fungsi Download Excel Dashboard Utama (Sesuai kolom A, B, D, H, I, J, K, L, M, N, O, P berdasarkan header baris ke-5)
+function downloadTimbangExcel() {
+  if (!filteredTimbangExportData || filteredTimbangExportData.length === 0) {
+    alert("Tidak ada data jembatan timbang untuk diunduh!");
+    return;
+  }
+
+  // Indeks kolom Excel: A(0), B(1), D(3), H(7), I(8), J(9), K(10), L(11), M(12), N(13), O(14), P(15)
+  let excelData = filteredTimbangExportData.map(item => {
+    let r = item.rawRow || [];
+    return {
+      "NO TIKET": r[0] || "",
+      "No.Lambung": r[1] || "",
+      "SUBKON": r[3] || "",
+      "NAMA SOPIR": r[7] || "",
+      "GROSS": r[8] || "",
+      "TARE": r[9] || "",
+      "NETTO": r[10] || "",
+      "IN (TIME)": r[11] || "",
+      "OUT (TIME)": r[12] || "",
+      "IN (DATE)": r[13] || "",
+      "OUT (DATE)": r[14] || "",
+      "KETERANGAN": r[15] || ""
+    };
+  });
+
+  let worksheet = XLSX.utils.json_to_sheet(excelData);
+  let workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Jembatan Timbang");
+
+  let fileName = currentRole === 'admin' ? "jembatan_timbang_all_subkon.xlsx" : `jembatan_timbang_${currentRole.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+}
+
+function downloadSpeedExcel() {
   if (!filteredSpeedExportData || filteredSpeedExportData.length === 0) {
-    alert("Tidak ada data untuk diunduh!");
+    alert("Tidak ada data kecepatan untuk diunduh!");
     return;
   }
 
