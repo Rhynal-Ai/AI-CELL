@@ -80,10 +80,9 @@ body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
 <div class="flex-1 min-w-[200px]">
 <label class="block text-xs font-semibold text-slate-600 mb-1">Periode Bulan (Database)</label>
 <select id="selectBulan" onchange="changeMonthSource()" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600 font-semibold text-emerald-700">
-<option value="https://script.google.com/macros/s/AKfycbwvlowcd9FZQi6V4kpB2AEbzeJfRDry79l7wjk-SKMY6g6Syyi8-V8o9NQ2ftsJmwHf/exec">November 2026</option>
-<option value=""></option>
+<option value="https://script.google.com/macros/s/AKfycbwvlowcd9FZQi6V4kpB2AEbzeJfRDry7917wjk-SKMY6g6Syyi8-V809NQ2ftsJmwHf/exec">November 2026</option>
+<option value="">-</option>
 <option value="LINK_URL_WEB_APP_MARET_ANDA_DISINI">Maret 2026 No Data</option>
-<!-- Tambahkan option bulan lainnya di sini sesuai kebutuhan -->
 </select>
 </div>
 <div class="flex-1 min-w-[160px]"><label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Mulai</label><input type="date" id="timbangStart" class="w-full bg-slate-50 border border-slate-300 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-600"></div>
@@ -178,9 +177,7 @@ body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
 </main>
 
 <script>
-// WEB_APP_URL dibuat dinamis (let) mengikuti pilihan dropdown bulan
-let WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwvlowcd9FZQi6V4kpB2AEbzeJfRDry79l7wjk-SKMY6g6Syyi8-V8o9NQ2ftsJmwHf/exec";
-
+let WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwvlowcd9FZQi6V4kpB2AEbzeJfRDry7917wjk-SKMY6g6Syyi8-V809NQ2ftsJmwHf/exec";
 let c1, c2, c3, c4, c5;
 let globalTimbangData = [];
 let filteredTimbangExportData = [];
@@ -193,12 +190,11 @@ let currentRole = 'admin';
 let currentUserType = 'admin';
 let currentEntityName = '';
 
-// Fungsi untuk mengganti link/URL endpoint database saat bulan pada dropdown diganti
 function changeMonthSource() {
   let selectEl = document.getElementById('selectBulan');
-  if (selectEl) {
-    WEB_APP_URL = selectEl.value; // Memperbarui URL dengan link bulan yang dipilih
-    loadDataFromSpreadsheet();     // Memuat ulang data dari spreadsheet bulan tersebut
+  if (selectEl && selectEl.value) {
+    WEB_APP_URL = selectEl.value;
+    loadDataFromSpreadsheet();
   }
 }
 
@@ -224,7 +220,7 @@ async function handleLogin(event) {
   btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...';
   btnSubmit.disabled = true;
 
-  if (u.toLowerCase() === 'admin' && p === 'clm2026') {
+  if (u.toLowerCase() === 'admin' && p === 'subkon') {
     currentRole = 'admin';
     currentUserType = 'admin';
     currentEntityName = '';
@@ -235,7 +231,7 @@ async function handleLogin(event) {
     return;
   }
 
-  if (p === 'subkon2026') {
+  if (p === 'subkon') {
     if (cachedSubkons.length === 0 || cachedSuppliers.length === 0) {
       await fetchSubkonListQuick();
     }
@@ -753,6 +749,7 @@ function downloadTimbangExcel() {
       "No.Lambung": r[1] || "",
       "SUPPLIER": r[2] || "",
       "SUBKON": r[3] || "",
+      "KODE/DATA KOLOM F": r[5] || "", 
       "NAMA SOPIR": r[7] || "",
       "GROSS": r[8] || "",
       "TARE": r[9] || "",
